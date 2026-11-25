@@ -220,6 +220,21 @@ export const CreateIntegrationInput = z
   })
   .meta({ description: "Create a new media server integration" });
 
+export const SetIntegrationAccountsInput = z
+  .object({
+    provider: z
+      .enum(["plex", "jellyfin", "emby", "sonarr", "radarr"])
+      .describe("Media server provider to configure"),
+    allowedAccountIds: z
+      .array(z.string().trim().min(1).max(200))
+      .max(100)
+      .nullable()
+      .describe(
+        "Media server account IDs whose plays should be logged. Null accepts every account; an empty list accepts none.",
+      ),
+  })
+  .meta({ description: "Replace the account allowlist of an integration" });
+
 // ─── Admin inputs ──────────────────────────────────────────────
 
 export const AdminSettingsOutput = z
@@ -1004,10 +1019,25 @@ export const IntegrationSchema = z
       .describe("Integration type: webhook (Plex/Jellyfin/Emby) or list (Sonarr/Radarr)"),
     token: z.string().describe("Webhook authentication token"),
     enabled: z.boolean().describe("Whether the integration is active"),
+    allowedAccountIds: z
+      .array(z.string())
+      .nullable()
+      .describe(
+        "Media server account IDs allowed to report plays, or null when every account is accepted",
+      ),
     lastEventAt: z.string().nullable().describe("Last received event timestamp (ISO 8601)"),
     createdAt: z.string().describe("When the integration was created (ISO 8601)"),
   })
   .meta({ id: "Integration", description: "A media server integration configuration" });
+
+export const IntegrationAccountSchema = z
+  .object({
+    accountId: z.string().describe("Account ID as reported by the media server"),
+    accountName: z.string().nullable().describe("Account name, when the payload carried one"),
+    lastSeenAt: z.string().describe("When this account last sent a webhook (ISO 8601)"),
+    eventCount: z.number().int().describe("How many events were received from this account"),
+  })
+  .meta({ id: "IntegrationAccount", description: "A media server account seen by a webhook" });
 
 export const IntegrationEventSchema = z
   .object({
@@ -1015,6 +1045,8 @@ export const IntegrationEventSchema = z
     eventType: z.string().nullable().describe("Webhook event type"),
     mediaType: z.string().nullable().describe("Media type from the event"),
     mediaTitle: z.string().nullable().describe("Title from the event"),
+    accountId: z.string().nullable().describe("Account that reported the play"),
+    accountName: z.string().nullable().describe("Account name that reported the play"),
     status: z.enum(["success", "ignored", "error"]).describe("Event processing outcome"),
     receivedAt: z.string().describe("When the event was received (ISO 8601)"),
   })
@@ -1027,6 +1059,9 @@ export const IntegrationsListOutput = z
         recentEvents: z
           .array(IntegrationEventSchema)
           .describe("Last 10 events for this integration"),
+        accounts: z
+          .array(IntegrationAccountSchema)
+          .describe("Accounts seen sending webhooks, most recently active first"),
       }),
     ),
   })

@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 
-import { findIntegrationByToken } from "@sofa/core/integrations";
+import { findIntegrationByToken, parseAllowedAccountIds } from "@sofa/core/integrations";
 import type { WebhookEvent } from "@sofa/core/webhooks";
 import {
   parseEmbyPayload,
@@ -50,7 +50,13 @@ app.post("/:token", async (c) => {
       return c.json({ ok: true });
     }
 
-    await processWebhook(connection.id, connection.userId, provider, event);
+    await processWebhook(
+      connection.id,
+      connection.userId,
+      provider,
+      event,
+      parseAllowedAccountIds(connection.allowedAccountIds),
+    );
   } catch (err) {
     // Swallow errors — never return non-200 to media servers
     log.warn("Webhook processing failed:", err);

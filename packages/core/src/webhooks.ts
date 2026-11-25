@@ -29,6 +29,13 @@ export interface WebhookEvent {
   seasonNumber?: number;
   episodeNumber?: number;
   showTitle?: string;
+  /**
+   * Account that reported the play, as the media server identifies it (Plex account
+   * ID, Jellyfin/Emby user ID). Webhooks are server-wide, so this is the only way to
+   * tell whose play it was — `undefined` when the payload doesn't carry it.
+   */
+  accountId?: string;
+  accountName?: string;
 }
 
 /** @internal */
@@ -40,6 +47,16 @@ export function toOptionalInt(value: unknown): number | undefined {
     const parsed = Number.parseInt(value, 10);
     if (!Number.isNaN(parsed)) return parsed;
   }
+  return undefined;
+}
+
+/** @internal — account IDs are numbers on Plex and strings elsewhere; normalise both. */
+export function toOptionalString(value: unknown): string | undefined {
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : undefined;
+  }
+  if (typeof value === "number" && Number.isFinite(value)) return String(value);
   return undefined;
 }
 
@@ -60,6 +77,9 @@ export function parsePlexPayload(formData: FormData): WebhookEvent | null {
 
   const metadata = payload.Metadata as Record<string, unknown> | undefined;
   if (!metadata) return null;
+
+  // Server-wide webhook: the account block is what tells us whose play this is.
+  const account = (payload.Account ?? {}) as Record<string, unknown>;
 
   const metaType = metadata.type as string;
   const isMovie = metaType === "movie";
@@ -96,6 +116,8 @@ export function parsePlexPayload(formData: FormData): WebhookEvent | null {
     seasonNumber: toOptionalInt(metadata.parentIndex),
     episodeNumber: toOptionalInt(metadata.index),
     showTitle: (metadata.grandparentTitle ?? metadata.parentTitle) as string | undefined,
+    accountId: toOptionalString(account.id),
+    accountName: toOptionalString(account.title),
   };
 }
 
@@ -123,6 +145,8 @@ export function parseJellyfinPayload(body: Record<string, unknown>): WebhookEven
     seasonNumber: toOptionalInt(body.SeasonNumber),
     episodeNumber: toOptionalInt(body.EpisodeNumber),
     showTitle: (body.SeriesName ?? body.ShowName) as string | undefined,
+    accountId: toOptionalString(body.UserId),
+    accountName: toOptionalString(body.NotificationUsername),
   };
 }
 
@@ -140,6 +164,10 @@ export function parseEmbyPayload(body: Record<string, unknown>): WebhookEvent | 
 
   const item = body.Item as Record<string, unknown> | undefined;
   if (!item) return null;
+
+  // Native Emby webhooks nest the account under `User`; older plugin payloads
+  // put a flat `UserId`/`UserName` at the top level.
+  const user = (body.User ?? {}) as Record<string, unknown>;
 
   const itemType = item.Type as string | undefined;
   const isMovie = itemType === "Movie";
@@ -161,6 +189,8 @@ export function parseEmbyPayload(body: Record<string, unknown>): WebhookEvent | 
     seasonNumber: toOptionalInt(item.ParentIndexNumber),
     episodeNumber: toOptionalInt(item.IndexNumber),
     showTitle: (item.SeriesName ?? item.ShowName) as string | undefined,
+    accountId: toOptionalString(user.Id ?? body.UserId),
+    accountName: toOptionalString(user.Name ?? body.UserName),
   };
 }
 
@@ -199,6 +229,26 @@ function isDuplicateEpisodeWatch(userId: string, episodeId: string): boolean {
   return !!recent;
 }
 
+// ─── Account allowlist ──────────────────────────────────────────────
+
+/**
+ * Whether an event may be logged for this integration.
+ *
+ * `allowedAccountIds === null` means the integration has no restriction (the
+ * default). Once a list is set, events from any other account — and events that
+ * carry no account at all — are rejected, because the whole point of the
+ * restriction is "only these people's plays count".
+ */
+export function isAccountAllowed(
+  event: Pick<WebhookEvent, "accountId">,
+  allowedAccountIds: string[] | null | undefined,
+): boolean {
+  if (!allowedAccountIds) return true;
+  if (allowedAccountIds.length === 0) return false;
+  if (!event.accountId) return false;
+  return allowedAccountIds.includes(event.accountId);
+}
+
 // ─── Event Logging ──────────────────────────────────────────────────
 
 function logEvent(
@@ -218,6 +268,8 @@ function logEvent(
             : "PlaybackStop",
       mediaType: event?.mediaType ?? null,
       mediaTitle: event?.title ?? null,
+      accountId: event?.accountId ?? null,
+      accountName: event?.accountName ?? null,
       status,
       errorMessage: errorMessage ?? null,
       receivedAt: new Date(),
@@ -233,9 +285,18 @@ export async function processWebhook(
   userId: string,
   provider: "plex" | "jellyfin" | "emby",
   event: WebhookEvent,
+  allowedAccountIds: string[] | null = null,
 ): Promise<{ status: "success" | "ignored" | "error"; message: string }> {
   log.info(`Received ${provider} webhook: ${event.mediaType} "${event.title}"`);
   try {
+    // Reject other people's plays before spending any TMDB call on them.
+    if (!isAccountAllowed(event, allowedAccountIds)) {
+      const who = event.accountName ?? event.accountId ?? "unknown account";
+      log.info(`Ignoring ${provider} webhook from ${who} (not in allowlist)`);
+      logEvent(connectionId, event, "ignored", "Account not in allowlist");
+      return { status: "ignored", message: "Account not in allowlist" };
+    }
+
     if (event.mediaType === "movie") {
       const hasExternalId = event.tmdbId || event.imdbId || event.tvdbId;
       const tmdbId = await resolveMovieTmdbId({

@@ -27,6 +27,8 @@ import { Label } from "@/components/ui/label";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { orpc } from "@/lib/orpc/client";
 
+import { IntegrationAccounts, type IntegrationAccount } from "./integration-accounts";
+
 // ─── Types ──────────────────────────────────────────────────────────
 
 export interface IntegrationConnection {
@@ -35,12 +37,18 @@ export interface IntegrationConnection {
   type: "webhook" | "list";
   token: string;
   enabled: boolean;
+  /** Account IDs allowed to report plays; `null` accepts every account. */
+  allowedAccountIds: string[] | null;
   lastEventAt: string | null;
+  /** Accounts seen in this integration's event history. */
+  accounts: IntegrationAccount[];
   recentEvents: {
     id: string;
     eventType: string | null;
     mediaType: string | null;
     mediaTitle: string | null;
+    accountId: string | null;
+    accountName: string | null;
     status: "success" | "ignored" | "error";
     receivedAt: string;
   }[];
@@ -82,7 +90,7 @@ export function IntegrationCard({
   const connectMutation = useMutation(
     orpc.account.integrations.create.mutationOptions({
       onSuccess: (result) => {
-        setConnections((prev) => [...prev, { ...result, recentEvents: [] }]);
+        setConnections((prev) => [...prev, { ...result, recentEvents: [], accounts: [] }]);
         toast.success(t`${label} connected`);
       },
       onError: () => toast.error(t`Failed to connect ${label}`),
@@ -234,6 +242,19 @@ export function IntegrationCard({
                   </motion.div>
                 )}
               </AnimatePresence>
+            )}
+
+            {connection?.type === "webhook" && (
+              <IntegrationAccounts
+                provider={providerInput}
+                accounts={connection.accounts}
+                allowedAccountIds={connection.allowedAccountIds}
+                onChange={(allowedAccountIds) =>
+                  setConnections((prev) =>
+                    prev.map((c) => (c.provider === provider ? { ...c, allowedAccountIds } : c)),
+                  )
+                }
+              />
             )}
 
             <Collapsible open={setupOpen} onOpenChange={setSetupOpen}>

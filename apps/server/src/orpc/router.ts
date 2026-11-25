@@ -55,6 +55,7 @@ export const implementedRouter = {
       create: account.integrationsCreate,
       delete: account.integrationsDelete,
       regenerateToken: account.integrationsRegenerateToken,
+      setAccounts: account.integrationsSetAccounts,
     },
   },
   system: {

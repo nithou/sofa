@@ -1261,6 +1261,18 @@ msgstr "오류 ({errorCount})"
 msgid "Every {n}h"
 msgstr "매 {n}시간"
 
+#: apps/web/src/components/settings/integration-accounts.tsx
+#~ msgid "Every account on the server is logged. Turn this on to choose whose plays count."
+#~ msgstr ""
+
+#: apps/web/src/components/settings/integration-accounts.tsx
+#~ msgid "Every account on this server is logged. Turn this on to choose whose plays count."
+#~ msgstr ""
+
+#: apps/web/src/components/settings/integration-accounts.tsx
+msgid "Every account on this server is logged. Turn this on to start with every account seen here, then untick the ones you don't want."
+msgstr ""
+
 #: apps/web/src/routes/_app/history.tsx
 msgid "Everything you've watched, newest first."
 msgstr ""
@@ -1445,6 +1457,10 @@ msgstr "에피소드 시청 취소 실패"
 #: apps/web/src/components/titles/use-title-actions.ts
 msgid "Failed to unmark some episodes"
 msgstr "일부 에피소드 시청 취소 실패"
+
+#: apps/web/src/components/settings/integration-accounts.tsx
+msgid "Failed to update accounts"
+msgstr ""
 
 #: apps/native/src/app/(tabs)/(settings)/index.tsx
 msgid "Failed to update name"
@@ -2253,6 +2269,10 @@ msgstr ""
 msgid "Next: S{seasonNum} E{epNum}"
 msgstr "다음: S{seasonNum} E{epNum}"
 
+#: apps/web/src/components/settings/integration-accounts.tsx
+msgid "No accounts seen yet. They appear here the first time they play something — even when their plays are ignored."
+msgstr ""
+
 #: apps/web/src/components/settings/backup-section.tsx
 #: apps/web/src/components/settings/system-health-section.tsx
 msgid "No backups yet"
@@ -2301,6 +2321,10 @@ msgstr "향후 90일 이내 예정된 에피소드 또는 출시가 없습니다
 msgid "No watches yet."
 msgstr ""
 
+#: apps/web/src/components/settings/integration-accounts.tsx
+msgid "Nobody's plays will be logged until you tick an account."
+msgstr ""
+
 #: apps/native/src/components/settings/integration-card.tsx
 #: apps/web/src/components/settings/integration-card.tsx
 #: apps/web/src/components/settings/system-health-section.tsx
@@ -2346,6 +2370,14 @@ msgstr "찜 목록에 있음"
 #: apps/web/src/components/titles/title-availability.tsx
 msgid "On your services"
 msgstr "내 서비스에서"
+
+#: apps/web/src/components/settings/integration-accounts.tsx
+#~ msgid "Only log my plays"
+#~ msgstr ""
+
+#: apps/web/src/components/settings/integration-accounts.tsx
+msgid "Only log plays from selected accounts"
+msgstr ""
 
 #: apps/web/src/components/settings/imports-section.tsx
 msgid "Open {source} to enter code"
@@ -2424,6 +2456,10 @@ msgstr "또는"
 #: apps/native/src/app/(auth)/login.tsx
 #~ msgid "OR"
 #~ msgstr ""
+
+#: apps/web/src/components/settings/integration-accounts.tsx
+msgid "Other accounts keep showing up here and in the event list, but their plays are never logged."
+msgstr ""
 
 #: apps/native/src/app/+not-found.tsx
 msgid "Page Not Found"
@@ -2507,6 +2543,10 @@ msgstr "예고편 재생"
 #: apps/native/src/app/title/[id].tsx
 msgid "Play trailer for {titleName}"
 msgstr "{titleName} 예고편 재생"
+
+#: apps/web/src/components/settings/integration-accounts.tsx
+#~ msgid "Plays from other accounts are ignored."
+#~ msgstr ""
 
 #: apps/native/src/app/change-password.tsx
 #: apps/web/src/components/settings/account-section.tsx
@@ -3509,6 +3549,10 @@ msgstr "올해"
 #: apps/web/src/components/settings/backup-schedule-section.tsx
 msgid "Thursday"
 msgstr "목요일"
+
+#: apps/web/src/components/settings/integration-accounts.tsx
+msgid "Ticked accounts are logged. Everyone else is ignored."
+msgstr ""
 
 #: apps/web/src/components/titles/log-watch-dialog.tsx
 msgid "Time (optional)"

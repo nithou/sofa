@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, test } from "vitest";
 
+import { insertIntegrationEventTransaction } from "@sofa/db/queries/webhooks";
 import { clearAllTables, insertUser } from "@sofa/test/db";
 
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}T/;
@@ -9,7 +10,9 @@ import {
   deleteIntegration,
   findIntegrationByToken,
   listUserIntegrations,
+  parseAllowedAccountIds,
   regenerateToken,
+  setIntegrationAccounts,
 } from "../src/integrations";
 
 beforeEach(() => {
@@ -120,5 +123,103 @@ describe("regenerateToken", () => {
     const result = regenerateToken("user-1", "plex");
     expect(result?.token).not.toBe(created.token);
     expect(result?.token).toHaveLength(64);
+  });
+});
+
+describe("setIntegrationAccounts", () => {
+  test("stores an allowlist and returns it in the list", () => {
+    createOrUpdateIntegration("user-1", "plex");
+    const result = setIntegrationAccounts("user-1", "plex", ["23031105", "2"]);
+
+    expect(result?.allowedAccountIds).toEqual(["23031105", "2"]);
+    expect(listUserIntegrations("user-1").integrations[0]?.allowedAccountIds).toEqual([
+      "23031105",
+      "2",
+    ]);
+  });
+
+  test("null clears the restriction", () => {
+    createOrUpdateIntegration("user-1", "plex");
+    setIntegrationAccounts("user-1", "plex", ["1"]);
+
+    expect(setIntegrationAccounts("user-1", "plex", null)?.allowedAccountIds).toBeNull();
+  });
+
+  test("trims, dedupes and drops empty ids", () => {
+    createOrUpdateIntegration("user-1", "plex");
+
+    expect(
+      setIntegrationAccounts("user-1", "plex", [" 1 ", "1", "", "  "])?.allowedAccountIds,
+    ).toEqual(["1"]);
+  });
+
+  test("keeps an empty list as 'nobody allowed'", () => {
+    createOrUpdateIntegration("user-1", "plex");
+
+    expect(setIntegrationAccounts("user-1", "plex", [])?.allowedAccountIds).toEqual([]);
+  });
+
+  test("returns null when the integration does not exist", () => {
+    expect(setIntegrationAccounts("user-1", "plex", ["1"])).toBeNull();
+  });
+});
+
+describe("listUserIntegrations accounts", () => {
+  test("groups events per account, counts ignored ones and lists the most recent first", () => {
+    const integration = createOrUpdateIntegration("user-1", "plex");
+
+    const log = (
+      accountId: string | null,
+      accountName: string | null,
+      status: "success" | "ignored" | "error",
+      receivedAt: string,
+    ) =>
+      insertIntegrationEventTransaction(
+        {
+          integrationId: integration.id,
+          eventType: "media.scrobble",
+          mediaTitle: "Probe",
+          accountId,
+          accountName,
+          status,
+          errorMessage: null,
+          receivedAt: new Date(receivedAt),
+        },
+        integration.id,
+      );
+
+    log("1", "alice", "success", "2026-01-01T10:00:00Z");
+    log("1", "alice", "ignored", "2026-01-01T12:00:00Z");
+    log("2", "bob", "success", "2026-01-01T11:00:00Z");
+    // Events with no account cannot be attributed, so they are not offered as an account.
+    log(null, null, "success", "2026-01-01T13:00:00Z");
+
+    expect(listUserIntegrations("user-1").integrations[0]?.accounts).toEqual([
+      {
+        accountId: "1",
+        accountName: "alice",
+        lastSeenAt: "2026-01-01T12:00:00.000Z",
+        eventCount: 2,
+      },
+      {
+        accountId: "2",
+        accountName: "bob",
+        lastSeenAt: "2026-01-01T11:00:00.000Z",
+        eventCount: 1,
+      },
+    ]);
+  });
+});
+
+describe("parseAllowedAccountIds", () => {
+  test("returns null for missing or unusable values", () => {
+    expect(parseAllowedAccountIds(null)).toBeNull();
+    expect(parseAllowedAccountIds("")).toBeNull();
+    expect(parseAllowedAccountIds("not json")).toBeNull();
+    expect(parseAllowedAccountIds('{"a":1}')).toBeNull();
+  });
+
+  test("keeps only string entries", () => {
+    expect(parseAllowedAccountIds('["1",2,null,"3"]')).toEqual(["1", "3"]);
   });
 });

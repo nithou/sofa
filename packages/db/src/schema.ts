@@ -438,6 +438,10 @@ export const integrations = sqliteTable(
     type: text("type", { enum: ["webhook", "list"] }).notNull(),
     token: text("token").notNull().unique(),
     enabled: int("enabled", { mode: "boolean" }).notNull().default(true),
+    // JSON array of media-server account IDs allowed to report plays.
+    // NULL means "no restriction" — every account the webhook reports is accepted,
+    // which is the historical behaviour and keeps existing installs untouched.
+    allowedAccountIds: text("allowedAccountIds"),
     createdAt: int("createdAt", { mode: "timestamp" }).notNull(),
     lastEventAt: int("lastEventAt", { mode: "timestamp" }),
   },
@@ -457,6 +461,10 @@ export const integrationEvents = sqliteTable(
     eventType: text("eventType"),
     mediaType: text("mediaType"),
     mediaTitle: text("mediaTitle"),
+    // Media-server account that reported the play. Kept even when the event is
+    // rejected, so the integration settings can list the accounts it has seen.
+    accountId: text("accountId"),
+    accountName: text("accountName"),
     status: text("status", {
       enum: ["success", "ignored", "error"],
     }).notNull(),
@@ -465,6 +473,7 @@ export const integrationEvents = sqliteTable(
   },
   (table) => [
     index("integrationEvents_integrationId_receivedAt").on(table.integrationId, table.receivedAt),
+    index("integrationEvents_integrationId_accountId").on(table.integrationId, table.accountId),
   ],
 );
 

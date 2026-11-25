@@ -12,6 +12,7 @@ import {
   listUserIntegrations,
   regenerateToken as coreRegenerateToken,
   serializeIntegration,
+  setIntegrationAccounts as coreSetIntegrationAccounts,
 } from "@sofa/core/integrations";
 import { getUserPlatformIdList, updateUserPlatforms } from "@sofa/core/platforms";
 
@@ -114,4 +115,23 @@ export const integrationsRegenerateToken = os.account.integrations.regenerateTok
     }
 
     return serializeIntegration(row);
+  });
+
+export const integrationsSetAccounts = os.account.integrations.setAccounts
+  .use(authed)
+  .handler(({ input, context }) => {
+    const row = coreSetIntegrationAccounts(
+      context.user.id,
+      input.provider,
+      input.allowedAccountIds,
+    );
+
+    if (!row) {
+      throw new ORPCError("NOT_FOUND", {
+        message: "Integration not found",
+        data: { code: AppErrorCode.INTEGRATION_NOT_FOUND },
+      });
+    }
+
+    return row;
   });

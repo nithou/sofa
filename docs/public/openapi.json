@@ -1051,6 +1051,20 @@
               "null"
             ]
           },
+          "accountId": {
+            "description": "Account that reported the play",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "accountName": {
+            "description": "Account name that reported the play",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "status": {
             "type": "string",
             "enum": [
@@ -1070,11 +1084,47 @@
           "eventType",
           "mediaType",
           "mediaTitle",
+          "accountId",
+          "accountName",
           "status",
           "receivedAt"
         ],
         "additionalProperties": false,
         "description": "A webhook or sync event from a media server"
+      },
+      "IntegrationAccount": {
+        "type": "object",
+        "properties": {
+          "accountId": {
+            "type": "string",
+            "description": "Account ID as reported by the media server"
+          },
+          "accountName": {
+            "description": "Account name, when the payload carried one",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "lastSeenAt": {
+            "type": "string",
+            "description": "When this account last sent a webhook (ISO 8601)"
+          },
+          "eventCount": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "How many events were received from this account"
+          }
+        },
+        "required": [
+          "accountId",
+          "accountName",
+          "lastSeenAt",
+          "eventCount"
+        ],
+        "additionalProperties": false,
+        "description": "A media server account seen by a webhook"
       },
       "Integration": {
         "type": "object",
@@ -1103,6 +1153,20 @@
             "type": "boolean",
             "description": "Whether the integration is active"
           },
+          "allowedAccountIds": {
+            "anyOf": [
+              {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Media server account IDs allowed to report plays, or null when every account is accepted"
+          },
           "lastEventAt": {
             "description": "Last received event timestamp (ISO 8601)",
             "type": [
@@ -1121,6 +1185,7 @@
           "type",
           "token",
           "enabled",
+          "allowedAccountIds",
           "lastEventAt",
           "createdAt"
         ],
@@ -4914,6 +4979,20 @@
                             "type": "boolean",
                             "description": "Whether the integration is active"
                           },
+                          "allowedAccountIds": {
+                            "anyOf": [
+                              {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "description": "Media server account IDs allowed to report plays, or null when every account is accepted"
+                          },
                           "lastEventAt": {
                             "description": "Last received event timestamp (ISO 8601)",
                             "type": [
@@ -4931,6 +5010,13 @@
                               "$ref": "#/components/schemas/IntegrationEvent"
                             },
                             "description": "Last 10 events for this integration"
+                          },
+                          "accounts": {
+                            "type": "array",
+                            "items": {
+                              "$ref": "#/components/schemas/IntegrationAccount"
+                            },
+                            "description": "Accounts seen sending webhooks, most recently active first"
                           }
                         },
                         "required": [
@@ -4939,9 +5025,11 @@
                           "type",
                           "token",
                           "enabled",
+                          "allowedAccountIds",
                           "lastEventAt",
                           "createdAt",
-                          "recentEvents"
+                          "recentEvents",
+                          "accounts"
                         ],
                         "additionalProperties": false
                       }
@@ -5090,6 +5178,90 @@
         "responses": {
           "200": {
             "description": "Integration with new token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Integration"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Integration not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/NotFound5"
+                    },
+                    {
+                      "$ref": "#/components/schemas/UndefinedError"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/account/integrations/accounts": {
+      "put": {
+        "operationId": "account.integrations.setAccounts",
+        "summary": "Set allowed accounts",
+        "description": "Restrict which media server accounts may report plays to this integration. Pass null to accept every account; an empty list accepts none.",
+        "tags": [
+          "Account"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "provider": {
+                    "type": "string",
+                    "enum": [
+                      "plex",
+                      "jellyfin",
+                      "emby",
+                      "sonarr",
+                      "radarr"
+                    ],
+                    "description": "Media server provider to configure"
+                  },
+                  "allowedAccountIds": {
+                    "anyOf": [
+                      {
+                        "maxItems": 100,
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200
+                        }
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "Media server account IDs whose plays should be logged. Null accepts every account; an empty list accepts none."
+                  }
+                },
+                "required": [
+                  "provider",
+                  "allowedAccountIds"
+                ],
+                "description": "Replace the account allowlist of an integration"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Integration with its updated account allowlist",
             "content": {
               "application/json": {
                 "schema": {

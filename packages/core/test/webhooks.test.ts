@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
-import { episodes } from "@sofa/db/schema";
+import { episodes, integrationEvents } from "@sofa/db/schema";
 import {
   clearAllTables,
   insertIntegration,
@@ -11,11 +11,13 @@ import {
 } from "@sofa/test/db";
 
 import {
+  isAccountAllowed,
   parseEmbyPayload,
   parseJellyfinPayload,
   parsePlexPayload,
   processWebhook,
   toOptionalInt,
+  toOptionalString,
   type WebhookEvent,
 } from "../src/webhooks";
 
@@ -696,5 +698,166 @@ describe("processWebhook", () => {
 
     const result = await processWebhook(connectionId, userId, "plex", event);
     expect(result.status).toBe("error");
+  });
+
+  test("ignores plays from accounts outside the allowlist without resolving anything", async () => {
+    mockResolveMovieTmdbId.mockResolvedValue(27205);
+    mockGetOrFetchTitleByTmdbId.mockResolvedValue({ id: "title-1" });
+
+    const event: WebhookEvent = {
+      provider: "plex",
+      mediaType: "movie",
+      title: "Inception",
+      tmdbId: 27205,
+      accountId: "23031105",
+      accountName: "Nithou",
+    };
+
+    const result = await processWebhook(connectionId, userId, "plex", event, ["1"]);
+
+    expect(result).toEqual({ status: "ignored", message: "Account not in allowlist" });
+    expect(mockResolveMovieTmdbId).not.toHaveBeenCalled();
+
+    const stored = testDb.select().from(integrationEvents).all();
+    expect(stored).toHaveLength(1);
+    expect(stored[0]).toMatchObject({
+      status: "ignored",
+      accountId: "23031105",
+      accountName: "Nithou",
+      errorMessage: "Account not in allowlist",
+    });
+  });
+
+  test("logs plays from allowed accounts and records who sent them", async () => {
+    const { insertTitle } = await import("@sofa/test/db");
+    insertTitle({ id: "title-1", tmdbId: 27205, type: "movie", title: "Inception" });
+    mockResolveMovieTmdbId.mockResolvedValue(27205);
+    mockGetOrFetchTitleByTmdbId.mockResolvedValue({ id: "title-1" });
+
+    const event: WebhookEvent = {
+      provider: "plex",
+      mediaType: "movie",
+      title: "Inception",
+      tmdbId: 27205,
+      accountId: "23031105",
+      accountName: "Nithou",
+    };
+
+    const result = await processWebhook(connectionId, userId, "plex", event, ["23031105"]);
+
+    expect(result.status).toBe("success");
+    const stored = testDb.select().from(integrationEvents).all();
+    expect(stored[0]).toMatchObject({
+      status: "success",
+      accountId: "23031105",
+      accountName: "Nithou",
+    });
+  });
+
+  test("accepts every account when no allowlist is configured", async () => {
+    const { insertTitle } = await import("@sofa/test/db");
+    insertTitle({ id: "title-1", tmdbId: 27205, type: "movie", title: "Inception" });
+    mockResolveMovieTmdbId.mockResolvedValue(27205);
+    mockGetOrFetchTitleByTmdbId.mockResolvedValue({ id: "title-1" });
+
+    const event: WebhookEvent = {
+      provider: "plex",
+      mediaType: "movie",
+      title: "Inception",
+      tmdbId: 27205,
+      accountId: "999",
+    };
+
+    const result = await processWebhook(connectionId, userId, "plex", event);
+
+    expect(result.status).toBe("success");
+  });
+});
+
+// ─── Account attribution ────────────────────────────────────────────
+
+describe("account parsing", () => {
+  test("toOptionalString normalises numbers and trims strings", () => {
+    expect(toOptionalString(23031105)).toBe("23031105");
+    expect(toOptionalString("  nithou ")).toBe("nithou");
+    expect(toOptionalString("")).toBeUndefined();
+    expect(toOptionalString(null)).toBeUndefined();
+  });
+
+  test("Plex payload exposes the reporting account", () => {
+    const event = parsePlexPayload(
+      makePlexForm({
+        event: "media.scrobble",
+        Account: { id: 23031105, title: "nithou" },
+        Metadata: {
+          type: "movie",
+          title: "Inception",
+          Guid: [{ id: "tmdb://27205" }],
+        },
+      }),
+    );
+
+    expect(event?.accountId).toBe("23031105");
+    expect(event?.accountName).toBe("nithou");
+  });
+
+  test("Jellyfin payload exposes the reporting account", () => {
+    const event = parseJellyfinPayload({
+      NotificationType: "PlaybackStop",
+      PlayedToCompletion: true,
+      ItemType: "Movie",
+      Name: "Inception",
+      Provider_tmdb: "27205",
+      UserId: "abc-123",
+      NotificationUsername: "nithou",
+    });
+
+    expect(event?.accountId).toBe("abc-123");
+    expect(event?.accountName).toBe("nithou");
+  });
+
+  test("Emby payload reads the nested User block, then the flat fields", () => {
+    const nested = parseEmbyPayload({
+      Event: "playback.stop",
+      PlaybackInfo: { PlayedToCompletion: true },
+      User: { Id: "user-1", Name: "nithou" },
+      Item: { Type: "Movie", Name: "Inception", ProviderIds: { Tmdb: "27205" } },
+    });
+    expect(nested?.accountId).toBe("user-1");
+    expect(nested?.accountName).toBe("nithou");
+
+    const flat = parseEmbyPayload({
+      Event: "playback.stop",
+      PlayedToCompletion: true,
+      UserId: "user-2",
+      UserName: "wilhem",
+      Item: { Type: "Movie", Name: "Inception", ProviderIds: { Tmdb: "27205" } },
+    });
+    expect(flat?.accountId).toBe("user-2");
+    expect(flat?.accountName).toBe("wilhem");
+  });
+});
+
+describe("isAccountAllowed", () => {
+  test("allows everything when no allowlist is set", () => {
+    expect(isAccountAllowed({ accountId: "1" }, null)).toBe(true);
+    expect(isAccountAllowed({ accountId: "1" }, undefined)).toBe(true);
+    expect(isAccountAllowed({}, null)).toBe(true);
+  });
+
+  test("rejects accounts that are not listed", () => {
+    expect(isAccountAllowed({ accountId: "1" }, ["23031105"])).toBe(false);
+  });
+
+  test("accepts listed accounts", () => {
+    expect(isAccountAllowed({ accountId: "23031105" }, ["23031105"])).toBe(true);
+  });
+
+  test("rejects events without an account once a list is set", () => {
+    expect(isAccountAllowed({}, ["23031105"])).toBe(false);
+  });
+
+  test("an empty list blocks every account", () => {
+    expect(isAccountAllowed({ accountId: "23031105" }, [])).toBe(false);
   });
 });

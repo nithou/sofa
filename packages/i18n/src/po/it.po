@@ -1261,6 +1261,18 @@ msgstr "Errori ({errorCount})"
 msgid "Every {n}h"
 msgstr "Ogni {n}h"
 
+#: apps/web/src/components/settings/integration-accounts.tsx
+#~ msgid "Every account on the server is logged. Turn this on to choose whose plays count."
+#~ msgstr ""
+
+#: apps/web/src/components/settings/integration-accounts.tsx
+#~ msgid "Every account on this server is logged. Turn this on to choose whose plays count."
+#~ msgstr ""
+
+#: apps/web/src/components/settings/integration-accounts.tsx
+msgid "Every account on this server is logged. Turn this on to start with every account seen here, then untick the ones you don't want."
+msgstr ""
+
 #: apps/web/src/routes/_app/history.tsx
 msgid "Everything you've watched, newest first."
 msgstr ""
@@ -1445,6 +1457,10 @@ msgstr "Impossibile rimuovere il segno dall'episodio"
 #: apps/web/src/components/titles/use-title-actions.ts
 msgid "Failed to unmark some episodes"
 msgstr "Impossibile rimuovere il segno da alcuni episodi"
+
+#: apps/web/src/components/settings/integration-accounts.tsx
+msgid "Failed to update accounts"
+msgstr ""
 
 #: apps/native/src/app/(tabs)/(settings)/index.tsx
 msgid "Failed to update name"
@@ -2253,6 +2269,10 @@ msgstr ""
 msgid "Next: S{seasonNum} E{epNum}"
 msgstr "Prossimo: S{seasonNum} E{epNum}"
 
+#: apps/web/src/components/settings/integration-accounts.tsx
+msgid "No accounts seen yet. They appear here the first time they play something — even when their plays are ignored."
+msgstr ""
+
 #: apps/web/src/components/settings/backup-section.tsx
 #: apps/web/src/components/settings/system-health-section.tsx
 msgid "No backups yet"
@@ -2301,6 +2321,10 @@ msgstr "Nessun episodio o uscita in arrivo nei prossimi 90 giorni."
 msgid "No watches yet."
 msgstr ""
 
+#: apps/web/src/components/settings/integration-accounts.tsx
+msgid "Nobody's plays will be logged until you tick an account."
+msgstr ""
+
 #: apps/native/src/components/settings/integration-card.tsx
 #: apps/web/src/components/settings/integration-card.tsx
 #: apps/web/src/components/settings/system-health-section.tsx
@@ -2346,6 +2370,14 @@ msgstr "In watchlist"
 #: apps/web/src/components/titles/title-availability.tsx
 msgid "On your services"
 msgstr "Sui tuoi servizi"
+
+#: apps/web/src/components/settings/integration-accounts.tsx
+#~ msgid "Only log my plays"
+#~ msgstr ""
+
+#: apps/web/src/components/settings/integration-accounts.tsx
+msgid "Only log plays from selected accounts"
+msgstr ""
 
 #: apps/web/src/components/settings/imports-section.tsx
 msgid "Open {source} to enter code"
@@ -2424,6 +2456,10 @@ msgstr "o"
 #: apps/native/src/app/(auth)/login.tsx
 #~ msgid "OR"
 #~ msgstr ""
+
+#: apps/web/src/components/settings/integration-accounts.tsx
+msgid "Other accounts keep showing up here and in the event list, but their plays are never logged."
+msgstr ""
 
 #: apps/native/src/app/+not-found.tsx
 msgid "Page Not Found"
@@ -2507,6 +2543,10 @@ msgstr "Riproduci trailer"
 #: apps/native/src/app/title/[id].tsx
 msgid "Play trailer for {titleName}"
 msgstr "Riproduci trailer di {titleName}"
+
+#: apps/web/src/components/settings/integration-accounts.tsx
+#~ msgid "Plays from other accounts are ignored."
+#~ msgstr ""
 
 #: apps/native/src/app/change-password.tsx
 #: apps/web/src/components/settings/account-section.tsx
@@ -3509,6 +3549,10 @@ msgstr "Quest'anno"
 #: apps/web/src/components/settings/backup-schedule-section.tsx
 msgid "Thursday"
 msgstr "Giovedì"
+
+#: apps/web/src/components/settings/integration-accounts.tsx
+msgid "Ticked accounts are logged. Everyone else is ignored."
+msgstr ""
 
 #: apps/web/src/components/titles/log-watch-dialog.tsx
 msgid "Time (optional)"

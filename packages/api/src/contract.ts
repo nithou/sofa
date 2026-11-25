@@ -44,6 +44,7 @@ import {
   RestoreBackupInput,
   SearchInput,
   SearchOutput,
+  SetIntegrationAccountsInput,
   SystemHealthOutput,
   SystemStatusOutput,
   TitleDetailOutput,
@@ -583,6 +584,26 @@ export const contract = {
           }),
         )
         .input(ProviderParam)
+        .output(IntegrationOutput)
+        .errors({
+          NOT_FOUND: {
+            message: "Integration not found",
+            data: appErrorData(AppErrorCode.INTEGRATION_NOT_FOUND),
+          },
+        }),
+      setAccounts: oc
+        .meta(
+          openapi({
+            method: "PUT",
+            path: "/account/integrations/accounts",
+            tags: ["Account"],
+            summary: "Set allowed accounts",
+            description:
+              "Restrict which media server accounts may report plays to this integration. Pass null to accept every account; an empty list accepts none.",
+            successDescription: "Integration with its updated account allowlist",
+          }),
+        )
+        .input(SetIntegrationAccountsInput)
         .output(IntegrationOutput)
         .errors({
           NOT_FOUND: {
